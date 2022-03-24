@@ -1,5 +1,6 @@
-package com.everis.listadecontatos.feature.listacontatos
+package com.everis.listadecontatos.feature.listacontatos.view
 
+import android.app.AlertDialog
 import android.content.Intent
 import android.os.Bundle
 import android.view.View
@@ -11,18 +12,24 @@ import com.everis.listadecontatos.bases.BaseActivity
 import com.everis.listadecontatos.feature.contato.ContatoActivity
 import com.everis.listadecontatos.feature.listacontatos.adapter.ContatoAdapter
 import com.everis.listadecontatos.feature.listacontatos.model.ContatosVO
-import com.everis.listadecontatos.singleton.ContatoSingleton
+import com.everis.listadecontatos.feature.listacontatos.repository.ListaContatoRepository
+import com.everis.listadecontatos.feature.listacontatos.viewmodel.ListaContatosViewModel
+import com.everis.listadecontatos.helpers.HelperDB
 import kotlinx.android.synthetic.main.activity_main.*
 import java.lang.Exception
 
 
-class MainActivity : BaseActivity() {
+class ListaContatoActivity : BaseActivity() {
 
     private var adapter:ContatoAdapter? = null
+    var viewModel: ListaContatosViewModel? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
+        if(!intent.getBooleanExtra("isMock",false))viewModel = ListaContatosViewModel(
+            HelperDB(this)
+        )
         setupToolBar(toolBar, "Lista de contatos",false)
         setupListView()
         setupOnClicks()
@@ -39,7 +46,7 @@ class MainActivity : BaseActivity() {
 
     override fun onResume() {
         super.onResume()
-        onClickBuscar()
+        if(!intent.getBooleanExtra("isMock",false))onClickBuscar()
     }
 
     private fun onClickAdd(){
@@ -53,24 +60,30 @@ class MainActivity : BaseActivity() {
         startActivity(intent)
     }
 
-    private fun onClickBuscar(){
+    fun onClickBuscar(){
         val busca = etBuscar.text.toString()
         progress.visibility = View.VISIBLE
-        Thread(Runnable {
-            Thread.sleep(1500)
-            var listaFiltrada: List<ContatosVO> = mutableListOf()
-            try {
-                listaFiltrada = ContatoApplication.instance.helperDB?.buscarContatos(busca) ?: mutableListOf()
-            }catch (ex: Exception){
-                ex.printStackTrace()
+        viewModel?.getListaContatos(
+            busca,
+            onSuccess = {listaFiltrada ->
+                runOnUiThread {
+                    adapter = ContatoAdapter(this,listaFiltrada) {onClickItemRecyclerView(it)}
+                    recyclerView.adapter = adapter
+                    progress.visibility = View.GONE
+                    Toast.makeText(this,"Buscando por $busca",Toast.LENGTH_SHORT).show()
+                }
+            }, onError = { ex ->
+                runOnUiThread {
+                    AlertDialog.Builder(this)
+                        .setTitle("Atenção")
+                        .setMessage("Erro ao completar solicitação")
+                        .setPositiveButton("OK") { alert, _ ->
+                            alert.dismiss()
+                        }.show()
+
+                }
             }
-            runOnUiThread {
-                adapter = ContatoAdapter(this,listaFiltrada) {onClickItemRecyclerView(it)}
-                recyclerView.adapter = adapter
-                progress.visibility = View.GONE
-                Toast.makeText(this,"Buscando por $busca",Toast.LENGTH_SHORT).show()
-            }
-        }).start()
+        )
     }
 
 }
