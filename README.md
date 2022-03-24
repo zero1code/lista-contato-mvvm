@@ -1,1 +1,1 @@
-Aplicando MVVM e realizando a inkeção de dependências nativamente. (Sem bibliotecas)
+Aplicando MVVM e realizando a injeção de dependências nativamente. (Sem bibliotecas)
